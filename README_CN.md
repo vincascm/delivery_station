@@ -32,7 +32,8 @@ repository: git 仓库
   environment: 环境变量(可选)
   steps: 执行步骤
     kind: 类型(command or script)
-    name: 脚本名称(有字符串和数组两种形式，传递参数用数组形式)
+    name: 脚本名称(有字符串和数组两种形式，传递参数用数组形式, kind是script时有效)
+    command: 命令(有字符串和数组两种形式，传递参数用数组形式, kind是command时有效)
     host: 执行的目标主机(可选，如果不指定，在本机执行)
     current_dir: 当前目录(可选，在本机执行时有效)
     environment: 环境变量(可选，在本机执行时有效)
