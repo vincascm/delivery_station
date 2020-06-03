@@ -57,10 +57,6 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-18.04'
-      run: |
-        ci/ubuntu-install-packages
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
