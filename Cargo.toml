@@ -1,0 +1,27 @@
+[package]
+name = "delivery_station"
+version = "0.1.3"
+authors = ["vinoca <vinoca@vinoca.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyper = "0.13.5"
+hyper-tls = "0.4.1"
+lazy_static = "1.4.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8.12"
+serde_json = "1.0.53"
+serde_urlencoded = "0.6.1"
+tokio = { version = "0.2.21", features = ["macros", "fs"] }
+http = "0.2.1"
+routerify = "1.1.1"
+openssl = "0.10.29"
+hex = "0.4.2"
+percent-encoding = "2.1.0"
+chrono = "0.4.11"
+blocking = "0.4.2"
+ssh2 = "0.8.1"
+anyhow = "1.0.31"
+rand = "0.7.3"
