@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     process::Output,
 };
@@ -20,6 +19,7 @@ use crate::{
     trigger::TriggeredInfo,
 };
 
+mod environment;
 mod ssh;
 
 impl Repository {
@@ -144,58 +144,7 @@ impl StepResult {
 }
 
 impl Step {
-    fn environment(
-        &self,
-        config: &Config,
-        repository: &Repository,
-        triggered_info: &TriggeredInfo,
-    ) -> HashMap<String, String> {
-        let mut environment = match &config.environment {
-            Some(envs) => envs.clone(),
-            None => HashMap::new(),
-        };
-
-        if let Some(envs) = &repository.environment {
-            environment.extend(envs.clone());
-        }
-
-        if let Some(envs) = &self.environment {
-            environment.extend(envs.clone());
-        }
-
-        environment.insert(
-            "TRIGGERED_INFO_REPOSITORY".to_string(),
-            triggered_info.repository.to_string(),
-        );
-        if let Some(branch) = &triggered_info.branch {
-            environment.insert("TRIGGERED_INFO_BRANCH".to_string(), branch.to_string());
-        }
-        if let Some(tag) = &triggered_info.tag {
-            environment.insert("TRIGGERED_INFO_TAG".to_string(), tag.to_string());
-        }
-        if let Some(steps_name) = &triggered_info.steps_name {
-            environment.insert(
-                "TRIGGERED_INFO_STEPS_NAME".to_string(),
-                steps_name.to_string(),
-            );
-        }
-        environment
-    }
-
     async fn execute(
-        &self,
-        config: &Config,
-        repository: &Repository,
-        triggered_info: &TriggeredInfo,
-    ) -> Result<StepResult> {
-        let _self = self.clone();
-        let config = config.clone();
-        let repository = repository.clone();
-        let triggered_info = triggered_info.clone();
-        unblock!(_self.sync_execute(&config, &repository, &triggered_info))
-    }
-
-    fn sync_execute(
         &self,
         config: &Config,
         repository: &Repository,
@@ -205,11 +154,21 @@ impl Step {
 
         let envs = self.environment(config, repository, triggered_info);
         match &self.host {
-            Some(host) => self.ssh(host, config),
+            Some(host) => {
+                let host = config
+                    .host
+                    .get(host)
+                    .ok_or_else(|| anyhow!("invalid host: {}", host))?
+                    .clone();
+                let _self = self.clone();
+                let work_dir = config.work_dir.clone();
+                unblock!(_self.ssh(&host, &work_dir))
+            }
             None => {
                 let (mut cmd, args) = match &self.action {
                     Action::Script { name } => {
-                        let script_name = self.get_script_fullname(config, name.get_name())?;
+                        let script_name =
+                            self.get_script_fullname(&config.work_dir, name.get_name())?;
                         let mut cmd = Command::new("sh");
                         cmd.arg(script_name);
                         (cmd, name.get_args())
@@ -226,14 +185,14 @@ impl Step {
                     cmd.current_dir(current_dir);
                 }
                 cmd.envs(envs);
-                let output = cmd.output()?;
+                let output = unblock!(cmd.output())?;
                 Ok(output.into())
             }
         }
     }
 
-    fn get_script_fullname(&self, config: &Config, name: &str) -> Result<PathBuf> {
-        let script_name = Path::new(&config.work_dir);
+    fn get_script_fullname(&self, work_dir: &str, name: &str) -> Result<PathBuf> {
+        let script_name = Path::new(work_dir);
         let script_name = if script_name.is_relative() {
             std::env::current_dir()?.join(script_name)
         } else {

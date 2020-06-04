@@ -13,22 +13,22 @@ pub async fn gitea_trigger(req: Request<Body>) -> Result<Response<Body>, Error> 
 }
 
 async fn gitea_trigger_inner(req: Request<Body>) -> Result<Response<Body>> {
-    if let Some(c) = req.headers().get(CONTENT_TYPE) {
-        if c != "application/json" {
-            bail!("invalid content-type");
+    let (parts, body) = req.into_parts();
+    match parts.headers.get(CONTENT_TYPE) {
+        Some(c) => {
+            if c != "application/json" {
+                bail!("invalid content-type");
+            }
         }
-    } else {
-        bail!("missing content-type");
-    };
-    let header_signature = req
-        .headers()
+        None => bail!("missing content-type"),
+    }
+    let header_signature = parts
+        .headers
         .get("X-Gitea-Signature")
-        .ok_or_else(|| anyhow!("missing signature"))?
-        .clone();
-    let body = req.into_body();
+        .ok_or_else(|| anyhow!("missing signature"))?;
     let body = hyper::body::to_bytes(body).await?;
     let payload_signature = signature(&CONFIG.gitea_trigger_secret, &body)?;
-    if header_signature != payload_signature {
+    if header_signature != payload_signature.as_bytes() {
         bail!("signature error");
     }
     let body: GiteaForm = serde_json::from_slice(&body)?;

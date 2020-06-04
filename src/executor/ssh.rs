@@ -10,16 +10,12 @@ use anyhow::{anyhow, bail, Result};
 use ssh2::Session;
 
 use crate::{
-    config::{Action, Config, Step},
+    config::{Action, Host, Step},
     executor::StepResult,
 };
 
 impl Step {
-    pub fn ssh(&self, host: &str, config: &Config) -> Result<StepResult> {
-        let host = config
-            .host
-            .get(host)
-            .ok_or_else(|| anyhow!("invalid host: {}", host))?;
+    pub fn ssh(&self, host: &Host, work_dir: &str) -> Result<StepResult> {
         let stream = TcpStream::connect((host.hostname.as_str(), host.port.unwrap_or(22)))?;
         let mut session = Session::new()?;
         session.set_tcp_stream(stream);
@@ -43,7 +39,7 @@ impl Step {
         let remote_filename = format!("/tmp/delivery_station_{}", crate::tmp_filename(12));
         let (name, args) = match &self.action {
             Action::Script { name } => {
-                let script_name = self.get_script_fullname(config, name.get_name())?;
+                let script_name = self.get_script_fullname(work_dir, name.get_name())?;
                 let mut file = File::open(script_name)?;
                 let metadata = file.metadata()?;
                 let mut remote_file =

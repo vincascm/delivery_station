@@ -15,13 +15,9 @@ pub struct TriggeredInfo {
 }
 
 impl TriggeredInfo {
-    pub async fn delivery(&self, config: &Config) -> Result<()> {
-        for i in &config.repository {
-            if i.name == self.repository {
-                let i = i.clone();
-                let _self = self.clone();
-                tokio::spawn(async move { i.execute(&_self).await });
-            }
+    pub async fn delivery(self, config: &'static Config) -> Result<()> {
+        if let Some(repo) = config.repository.iter().find(|i| i.name == self.repository) {
+            tokio::spawn(async move { repo.execute(&self).await });
         }
         Ok(())
     }
