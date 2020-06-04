@@ -18,7 +18,9 @@ impl TriggeredInfo {
     pub async fn delivery(&self, config: &Config) -> Result<()> {
         for i in &config.repository {
             if i.name == self.repository {
-                i.execute(&self).await?;
+                let i = i.clone();
+                let _self = self.clone();
+                tokio::spawn(async move { i.execute(&_self).await });
             }
         }
         Ok(())
