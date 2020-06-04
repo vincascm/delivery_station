@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use anyhow::{anyhow, bail, Result};
 use hyper::{header::CONTENT_TYPE, Body, Error, Request, Response};
 use serde::Deserialize;
@@ -32,7 +34,7 @@ async fn gitea_trigger_inner(req: Request<Body>) -> Result<Response<Body>> {
         bail!("signature error");
     }
     let body: GiteaForm = serde_json::from_slice(&body)?;
-    let info: TriggeredInfo = body.into();
+    let info: TriggeredInfo = body.try_into()?;
     info.delivery(&CONFIG).await?;
     Ok(Response::new(Body::from("success")))
 }
@@ -62,14 +64,32 @@ pub struct GiteaForm {
     sender: User,
 }
 
-impl Into<TriggeredInfo> for GiteaForm {
-    fn into(self) -> TriggeredInfo {
-        TriggeredInfo {
-            repository: self.repository.full_name,
-            branch: Some(self._ref),
-            tag: None,
-            steps_name: None,
+impl TryInto<TriggeredInfo> for GiteaForm {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<TriggeredInfo> {
+        let section: Vec<&str> = self._ref.split('/').collect();
+        if section.len() != 3 {
+            bail!("invalid field \"ref\"");
         }
+        if !(section[0] == "refs" && (section[1] == "heads" || section[1] == "tags")) {
+            bail!("invalid field \"ref\"");
+        }
+        let (branch, tag) = if section[1] == "heads" {
+            (Some(section[2]), None)
+        } else if section[1] == "tags" {
+            (None, Some(section[2]))
+        } else {
+            bail!("invalid field \"ref\": {}", self._ref);
+        };
+
+        let info = TriggeredInfo {
+            repository: self.repository.full_name,
+            branch: branch.map(ToString::to_string),
+            tag: tag.map(ToString::to_string),
+            steps_name: None,
+        };
+        Ok(info)
     }
 }
 

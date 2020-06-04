@@ -28,7 +28,8 @@ environment: 环境变量
 repository: git 仓库
 -
   name: 仓库名
-  branch: git分支(可选)
+  branch: git分支(可选, 其值可为'@any', 表示只匹配类型为branch的`ref`)
+  tag: git tag(可选, 其值可为'@any', 表示只匹配类型为tag的`ref`))
   environment: 环境变量(可选)
   steps: 执行步骤
     kind: 类型(command or script)
@@ -113,12 +114,12 @@ curl -s -H "Content-Type: application/json" -d '{"repository":"com/abc", "branch
 其各参数分别表示：
 
 - *repository* : 仓库名称
-- *branch* : git分支
-- *tag* : git tag
-- *steps_name* : steps name
+- *branch* : git分支, 可选
+- *tag* : git tag, 可选
+- *steps_name* : steps name, 可选
 
 ## TODO
 
-- [ ] branch 匹配
-- [ ] tag 匹配
+- [x] branch 匹配
+- [x] tag 匹配
 

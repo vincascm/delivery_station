@@ -28,6 +28,7 @@ pub struct Repository {
     pub name: String,
     pub environment: Option<HashMap<String, String>>,
     pub branch: Option<String>,
+    pub tag: Option<String>,
     steps: CompositeSteps,
 }
 
