@@ -1,13 +1,13 @@
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 use crate::{config::Config, http::Client, notifier::dingtalk::DingTalk};
 
-lazy_static! {
-    pub static ref CONFIG: Config = Config::from_env().unwrap();
-    pub static ref CLIENT: Client = Client::default();
-    pub static ref DING_TALK: DingTalk<'static> = DingTalk::new(
+pub static CONFIG: Lazy<Config> = Lazy::new(|| Config::from_env().unwrap());
+pub static CLIENT: Lazy<Client> = Lazy::new(|| Client::default());
+pub static DING_TALK: Lazy<DingTalk<'static>> = Lazy::new(|| {
+    DingTalk::new(
         &CLIENT,
         &CONFIG.dingtalk_access_token,
-        &CONFIG.dingtalk_secret
-    );
-}
+        &CONFIG.dingtalk_secret,
+    )
+});
