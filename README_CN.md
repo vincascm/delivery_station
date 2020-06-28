@@ -45,6 +45,13 @@ repository: git 仓库
 - `script` 在 `work_dir/scripts` 中查找以 `name` 字段命名的脚本，如果存在 `host`，则将此脚本上传至 `host`，并在`host`中执行；如果不存在，则在本机执行。
 - `command` 如果存在 `host`，在`host`中执行些命令；如果不存在，在本机执行。
 
+`script`或`command`默认有如下环境变量：
+
+- **TRIGGERED_INFO_REPOSITORY**: 仓库名称，如`com/test`
+- **TRIGGERED_INFO_BRANCH**: , 分支名称，可选
+- **TRIGGERED_INFO_TAG**: , `tag`名称，可选
+- **TRIGGERED_INFO_STEPS_NAME**: , `steps_name`，可选
+
 ### config file example
 
 ```yaml
