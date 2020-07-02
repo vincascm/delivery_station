@@ -9,11 +9,21 @@ pub struct Config {
     pub gitea_trigger_secret: String,
     pub base_url: String,
     pub work_dir: String,
-    pub dingtalk_access_token: String,
-    pub dingtalk_secret: String,
+    pub notifier: Notifier,
     pub environment: Option<HashMap<String, String>>,
     pub host: HashMap<String, Host>,
     pub repository: Vec<Repository>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Notifier {
+    pub dingtalk: Option<Dingtalk>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Dingtalk {
+    pub access_token: String,
+    pub secret: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

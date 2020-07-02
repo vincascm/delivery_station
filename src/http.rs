@@ -1,4 +1,4 @@
-use std::{future::Future, net::ToSocketAddrs};
+use std::{future::Future, net::ToSocketAddrs, ops::Deref};
 
 use anyhow::{anyhow, Result};
 use http::{Request, Response};
@@ -11,6 +11,7 @@ use hyper_tls::HttpsConnector;
 use routerify::{Router, RouterBuilder, RouterService};
 
 use crate::{
+    constants::DING_TALK,
     executor::logs_handler,
     trigger::{gitea::gitea_trigger, manual::manual_trigger},
 };
@@ -67,6 +68,11 @@ impl Server {
 }
 
 pub fn new_server<T: ToSocketAddrs>(addr: T) -> Result<Server> {
+    // just check constants
+    {
+        let _ = DING_TALK.deref();
+    }
+
     let server = Server::new(addr)?;
     let server = server
         .post("/gitea_trigger", gitea_trigger)
