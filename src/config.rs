@@ -28,6 +28,7 @@ pub struct Dingtalk {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Host {
+    pub description: Option<String>,
     pub hostname: String,
     pub port: Option<u16>,
     pub user: String,
@@ -36,6 +37,7 @@ pub struct Host {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Repository {
     pub name: String,
+    pub description: Option<String>,
     pub environment: Option<HashMap<String, String>>,
     pub branch: Option<String>,
     pub tag: Option<String>,
@@ -80,6 +82,7 @@ impl Steps {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Step {
+    pub description: Option<String>,
     pub host: Option<String>,
     pub current_dir: Option<String>,
     pub environment: Option<HashMap<String, String>>,
