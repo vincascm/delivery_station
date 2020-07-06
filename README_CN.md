@@ -15,25 +15,30 @@
 http_listen_address: 监听地址
 work_dir: 工作目录
 gitea_trigger_secret: gitea secret
-dingtalk_access_token: 钉钉 access_token
-dingtalk_secret: 钉钉 secret
+notifier:
+  dingtalk:
+    access_token: 钉钉 access_token
+    secret: 钉钉 secret
 base_url: 访问前缀
 host: 主机
   dev: 主机名
-    hostname: 
-    port: 
-    user: 
+    description: 描述，可选
+    hostname: 主机地址
+    port: 端口号，可选
+    user: 用户名
 environment: 环境变量
   TARGET: target
 repository: git 仓库
 -
   name: 仓库名
+  description: 描述，可选
   branch: git分支(可选, 其值可为'@any', 表示只匹配类型为branch的`ref`)
   tag: git tag(可选, 其值可为'@any', 表示只匹配类型为tag的`ref`))
   environment: 环境变量(可选)
   steps: 执行步骤
     kind: 类型(command or script)
     name: 脚本名称(有字符串和数组两种形式，传递参数用数组形式, kind是script时有效)
+    description: 描述，可选
     command: 命令(有字符串和数组两种形式，传递参数用数组形式, kind是command时有效)
     host: 执行的目标主机(可选，如果不指定，在本机执行)
     current_dir: 当前目录(可选，在本机执行时有效)
@@ -58,8 +63,10 @@ repository: git 仓库
 http_listen_address: 0.0.0.0:8080
 work_dir: ./work_dir
 gitea_trigger_secret: SECRET
-dingtalk_access_token: TOKEN
-dingtalk_secret: SECRET
+notifier:
+  dingtalk:
+    access_token: TOKEN
+    secret: SECRET
 base_url: http://127.0.0.1:8080
 host:
   dev:
