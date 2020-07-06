@@ -3,6 +3,7 @@ use delivery_station::http::new_server;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
     let mut args = std::env::args();
     args.next();
     let addr = match args.next() {

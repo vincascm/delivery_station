@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::error;
 use serde::Deserialize;
 
 use crate::config::Config;
@@ -33,7 +34,11 @@ impl TriggeredInfo {
                     return Ok(());
                 }
             }
-            tokio::spawn(async move { repo.execute(&self).await });
+            tokio::spawn(async move {
+                if let Err(e) = repo.execute(&self).await {
+                    error!("delivery execute error: {}", e);
+                }
+            });
         }
         Ok(())
     }

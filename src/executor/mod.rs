@@ -15,7 +15,7 @@ use tokio::{
 
 use crate::{
     config::{Action, Config, Repository, Step},
-    constants::{CONFIG, DING_TALK},
+    constants::{CONFIG, NOTIFIER},
     trigger::TriggeredInfo,
 };
 
@@ -24,7 +24,6 @@ mod ssh;
 
 impl Repository {
     pub async fn execute(&self, triggered_info: &TriggeredInfo) -> Result<()> {
-        let mut status = 0;
         let mut action_result = Vec::new();
         let steps_name = triggered_info.steps_name.as_deref();
         for i in self
@@ -32,37 +31,21 @@ impl Repository {
             .ok_or_else(|| anyhow!("missing steps or steps name is invalid"))?
         {
             let result = i.execute(&CONFIG, &self, triggered_info).await?;
-            if result.success() {
-                action_result.push(result);
-            } else {
-                status = result.status;
-                action_result.push(result);
+            let is_success = result.success();
+            action_result.push(result);
+            if !is_success {
                 break;
             }
         }
+        let status = (&action_result)
+            .last()
+            .map(|i| i.status)
+            .unwrap_or_else(|| 0);
         let result = StepsResult {
             status,
             action_result,
         };
-        let status_info = if result.success() {
-            "success"
-        } else {
-            "failure"
-        };
-        let logs: Vec<String> = result
-            .save_to_file(&CONFIG)
-            .await?
-            .iter()
-            .map(|(stdout, stderr)| format!("[stdout]({}), [stderr]({})", stdout, stderr))
-            .collect();
-        let logs = logs.join("\n1. ");
-        let message = format!(
-            "## deployment task \n\n**repository:** {} \n\n**status:** {} \n\n**logs:** \n\n 1. {}",
-            &self.name, status_info, logs,
-        );
-        DING_TALK
-            .markdown(&format!("auto deploy: {}", &self.name), &message, None)
-            .await?;
+        NOTIFIER.notify(&self.name, result).await?;
         Ok(())
     }
 }
@@ -73,11 +56,14 @@ pub struct StepsResult {
 }
 
 impl StepsResult {
-    fn success(&self) -> bool {
+    pub fn success(&self) -> bool {
         self.status == 0
     }
 
-    async fn save_to_file(self, config: &Config) -> Result<Vec<(String, String)>> {
+    pub async fn save_to_file(
+        self,
+        config: &Config,
+    ) -> Result<Vec<(Option<String>, Option<String>)>> {
         let dir = crate::tmp_filename(16);
         let dir = Path::new(&dir);
         let mut url_list = Vec::new();
@@ -110,7 +96,11 @@ impl StepResult {
         self.status == 0
     }
 
-    async fn save_to_file(&self, config: &Config, parent_dir: &Path) -> Result<(String, String)> {
+    async fn save_to_file(
+        &self,
+        config: &Config,
+        parent_dir: &Path,
+    ) -> Result<(Option<String>, Option<String>)> {
         let dir = Path::new(&config.work_dir)
             .join("cache")
             .join("logs")
@@ -119,27 +109,32 @@ impl StepResult {
             create_dir_all(&dir).await?;
         }
 
-        if let Some(stdout) = &self.stdout {
-            let mut file = File::create(dir.join("1")).await?;
-            file.write_all(&stdout).await?;
-        }
-        if let Some(stderr) = &self.stderr {
-            let mut file = File::create(dir.join("2")).await?;
-            file.write_all(&stderr).await?;
+        async fn write_and_get_url(
+            url: &PathBuf,
+            parent_dir: &Path,
+            dir: &PathBuf,
+            number: &str,
+            out: Option<&Vec<u8>>,
+        ) -> Result<Option<String>> {
+            Ok(match out {
+                Some(out) if !out.is_empty() => {
+                    let mut file = File::create(dir.join(number)).await?;
+                    file.write_all(out).await?;
+                    Some(format!(
+                        "{}?id={}",
+                        url.to_string_lossy(),
+                        parent_dir.join("1").to_string_lossy()
+                    ))
+                }
+                _ => None,
+            })
         }
         let url = Path::new(&config.base_url).join("logs");
-        Ok((
-            format!(
-                "{}?id={}",
-                url.to_string_lossy(),
-                parent_dir.join("1").to_string_lossy()
-            ),
-            format!(
-                "{}?id={}",
-                url.to_string_lossy(),
-                parent_dir.join("2").to_string_lossy()
-            ),
-        ))
+        let stdout_url =
+            write_and_get_url(&url, parent_dir, &dir, "1", self.stdout.as_ref()).await?;
+        let stderr_url =
+            write_and_get_url(&url, parent_dir, &dir, "2", self.stderr.as_ref()).await?;
+        Ok((stdout_url, stderr_url))
     }
 }
 

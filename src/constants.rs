@@ -1,9 +1,13 @@
 use once_cell::sync::Lazy;
 
-use crate::{config::Config, http::Client, notifier::dingtalk::DingTalk};
+use crate::{
+    config::Config,
+    http::Client,
+    notifier::{DingTalk, Notifier},
+};
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| Config::from_env().unwrap());
-pub static CLIENT: Lazy<Client> = Lazy::new(|| Client::default());
+pub static CLIENT: Lazy<Client> = Lazy::new(Client::default);
 pub static DING_TALK: Lazy<DingTalk<'static>> = Lazy::new(|| {
     let dingtalk = &CONFIG
         .notifier
@@ -12,3 +16,4 @@ pub static DING_TALK: Lazy<DingTalk<'static>> = Lazy::new(|| {
         .expect("missing dingtalk in config file");
     DingTalk::new(&CLIENT, &dingtalk.access_token, &dingtalk.secret)
 });
+pub static NOTIFIER: Lazy<Notifier<'static>> = Lazy::new(|| Notifier::new(&DING_TALK));
