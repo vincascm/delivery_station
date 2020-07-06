@@ -220,24 +220,23 @@ struct OutputStaticArgs {
 }
 
 pub async fn logs_handler(req: Request<Body>) -> Result<Response<Body>, Error> {
-    match logs_handler_inner(req).await {
+    async fn inner(req: Request<Body>) -> Result<Response<Body>> {
+        let query = req
+            .uri()
+            .query()
+            .ok_or_else(|| anyhow!("\"id\" is missing."))?;
+        let query: OutputStaticArgs = serde_urlencoded::from_str(&query)?;
+        let f = Path::new(&CONFIG.work_dir)
+            .join("cache")
+            .join("logs")
+            .join(&query.id);
+        let mut f = File::open(f).await?;
+        let mut out = String::new();
+        f.read_to_string(&mut out).await?;
+        Ok(Response::new(Body::from(out)))
+    }
+    match inner(req).await {
         Ok(result) => Ok(result),
         Err(err) => Ok(Response::new(Body::from(err.to_string()))),
     }
-}
-
-async fn logs_handler_inner(req: Request<Body>) -> Result<Response<Body>> {
-    let query = req
-        .uri()
-        .query()
-        .ok_or_else(|| anyhow!("\"id\" is missing."))?;
-    let query: OutputStaticArgs = serde_urlencoded::from_str(&query)?;
-    let f = Path::new(&CONFIG.work_dir)
-        .join("cache")
-        .join("logs")
-        .join(&query.id);
-    let mut f = File::open(f).await?;
-    let mut out = String::new();
-    f.read_to_string(&mut out).await?;
-    Ok(Response::new(Body::from(out)))
 }
