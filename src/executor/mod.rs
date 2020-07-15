@@ -123,7 +123,7 @@ impl StepResult {
                     Some(format!(
                         "{}?id={}",
                         url.to_string_lossy(),
-                        parent_dir.join("1").to_string_lossy()
+                        parent_dir.join(number).to_string_lossy()
                     ))
                 }
                 _ => None,
