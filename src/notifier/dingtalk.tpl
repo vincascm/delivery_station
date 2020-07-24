@@ -7,12 +7,12 @@
 **logs:**
 
 {% for log in logs -%}
-{{loop.index}}. {% if log.0 | length() > 0 -%}
-        [stdout]({{log.0}})
+{{loop.index}}. {{log.description}} {% if log.stdout -%}
+        [stdout]({{log.stdout}})
     {%- else -%}
         stdout
-    {%- endif %}, {% if log.1 | length() > 0 -%}
-        [stderr]({{log.1}})
+    {%- endif %}, {% if log.stderr -%}
+        [stderr]({{log.stderr}})
     {%- else -%}
         stderr
     {%- endif %}

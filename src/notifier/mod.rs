@@ -18,12 +18,13 @@ impl<'a> Notifier<'a> {
 
     pub async fn notify(&self, repository_name: &str, result: StepsResult) -> Result<()> {
         let status = result.success();
-        let logs: Vec<_> = result
-            .save_to_file(&CONFIG)
-            .await?
-            .into_iter()
-            .map(|(stdout, stderr)| (stdout.unwrap_or_default(), stderr.unwrap_or_default()))
-            .collect();
+        let logs = result.save_to_file(&CONFIG).await?;
+        //let logs: Vec<_> = result
+        //.save_to_file(&CONFIG)
+        //.await?
+        //.into_iter()
+        //.map(|(stdout, stderr)| (stdout.unwrap_or_default(), stderr.unwrap_or_default()))
+        //.collect();
         let mut context = tera::Context::new();
         context.insert("repository_name", repository_name);
         context.insert("status", &status);

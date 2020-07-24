@@ -8,6 +8,7 @@ use blocking::unblock;
 use http::{Request, Response};
 use hyper::{Body, Error};
 use serde::Deserialize;
+use serde::Serialize;
 use tokio::{
     fs::{create_dir_all, File},
     io::{AsyncReadExt, AsyncWriteExt},
@@ -60,33 +61,37 @@ impl StepsResult {
         self.status == 0
     }
 
-    pub async fn save_to_file(
-        self,
-        config: &Config,
-    ) -> Result<Vec<(Option<String>, Option<String>)>> {
+    pub async fn save_to_file(self, config: &Config) -> Result<Vec<StepLog>> {
         let dir = crate::tmp_filename(16);
         let dir = Path::new(&dir);
-        let mut url_list = Vec::new();
+        let mut step_log = Vec::new();
         for (index, result) in self.action_result.iter().enumerate() {
-            let url = result
+            let log = result
                 .save_to_file(config, &dir.join(index.to_string()))
                 .await?;
-            url_list.push(url);
+            step_log.push(log);
         }
-        Ok(url_list)
+        Ok(step_log)
     }
 }
 
 pub struct StepResult {
     status: i32,
+    description: Option<String>,
     stdout: Option<Vec<u8>>,
     stderr: Option<Vec<u8>>,
 }
 
 impl StepResult {
-    pub fn new(status: i32, stdout: Option<Vec<u8>>, stderr: Option<Vec<u8>>) -> StepResult {
+    pub fn new(
+        status: i32,
+        description: Option<String>,
+        stdout: Option<Vec<u8>>,
+        stderr: Option<Vec<u8>>,
+    ) -> StepResult {
         StepResult {
             status,
+            description,
             stdout,
             stderr,
         }
@@ -96,11 +101,7 @@ impl StepResult {
         self.status == 0
     }
 
-    async fn save_to_file(
-        &self,
-        config: &Config,
-        parent_dir: &Path,
-    ) -> Result<(Option<String>, Option<String>)> {
+    async fn save_to_file(&self, config: &Config, parent_dir: &Path) -> Result<StepLog> {
         let dir = Path::new(&config.work_dir)
             .join("cache")
             .join("logs")
@@ -134,7 +135,12 @@ impl StepResult {
             write_and_get_url(&url, parent_dir, &dir, "1", self.stdout.as_ref()).await?;
         let stderr_url =
             write_and_get_url(&url, parent_dir, &dir, "2", self.stderr.as_ref()).await?;
-        Ok((stdout_url, stderr_url))
+        let step_log = StepLog {
+            description: self.description.clone(),
+            stdout: stdout_url,
+            stderr: stderr_url,
+        };
+        Ok(step_log)
     }
 }
 
@@ -181,7 +187,9 @@ impl Step {
                 }
                 cmd.envs(envs);
                 let output = unblock!(cmd.output())?;
-                Ok(output.into())
+                let mut step_result: StepResult = output.into();
+                step_result.description = self.description.clone();
+                Ok(step_result)
             }
         }
     }
@@ -208,10 +216,18 @@ impl From<Output> for StepResult {
     fn from(output: Output) -> StepResult {
         StepResult {
             status: output.status.code().unwrap_or(0),
+            description: None,
             stdout: Some(output.stdout),
             stderr: Some(output.stderr),
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct StepLog {
+    description: Option<String>,
+    stdout: Option<String>,
+    stderr: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

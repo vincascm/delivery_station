@@ -72,6 +72,7 @@ impl Step {
 
         let result = StepResult::new(
             status,
+            self.description.clone(),
             Some(stdout.as_bytes().to_vec()),
             Some(stderr.as_bytes().to_vec()),
         );
