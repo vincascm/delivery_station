@@ -35,8 +35,12 @@ async fn gitea_trigger_inner(req: Request<Body>) -> Result<Response<Body>> {
     }
     let body: GiteaForm = serde_json::from_slice(&body)?;
     let info: TriggeredInfo = body.try_into()?;
-    info.delivery(&CONFIG).await?;
-    Ok(Response::new(Body::from("success")))
+    let result = if info.delivery(&CONFIG).await? {
+        "matched"
+    } else {
+        "skipped"
+    };
+    Ok(Response::new(Body::from(result)))
 }
 
 fn signature(key: &str, payload: &[u8]) -> Result<String> {

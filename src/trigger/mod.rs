@@ -16,14 +16,14 @@ pub struct TriggeredInfo {
 }
 
 impl TriggeredInfo {
-    pub async fn delivery(self, config: &'static Config) -> Result<()> {
+    pub async fn delivery(self, config: &'static Config) -> Result<bool> {
         if let Some(repo) = config.repository.iter().find(|i| i.name == self.repository) {
             if let Some(branch) = &repo.branch {
                 if !match &self.branch {
                     Some(b) => branch == "@any" || b == branch,
                     None => false,
                 } {
-                    return Ok(());
+                    return Ok(false);
                 }
             }
             if let Some(tag) = &repo.tag {
@@ -31,7 +31,7 @@ impl TriggeredInfo {
                     Some(t) => tag == "@any" || t == tag,
                     None => false,
                 } {
-                    return Ok(());
+                    return Ok(false);
                 }
             }
             tokio::spawn(async move {
@@ -40,6 +40,6 @@ impl TriggeredInfo {
                 }
             });
         }
-        Ok(())
+        Ok(true)
     }
 }

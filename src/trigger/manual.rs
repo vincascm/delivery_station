@@ -22,6 +22,10 @@ async fn manual_trigger_inner(req: Request<Body>) -> Result<Response<Body>> {
     let body = req.into_body();
     let body = hyper::body::to_bytes(body).await?;
     let body: TriggeredInfo = serde_json::from_slice(&body)?;
-    body.delivery(&CONFIG).await?;
-    Ok(Response::new(Body::from("success")))
+    let result = if body.delivery(&CONFIG).await? {
+        "matched"
+    } else {
+        "skipped"
+    };
+    Ok(Response::new(Body::from(result)))
 }
