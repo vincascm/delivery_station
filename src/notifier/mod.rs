@@ -16,17 +16,17 @@ impl<'a> Notifier<'a> {
         Notifier { dingtalk }
     }
 
-    pub async fn notify(&self, repository_name: &str, result: StepsResult) -> Result<()> {
+    pub async fn notify(
+        &self,
+        repository_name: &str,
+        description: Option<&str>,
+        result: StepsResult,
+    ) -> Result<()> {
         let status = result.success();
         let logs = result.save_to_file(&CONFIG).await?;
-        //let logs: Vec<_> = result
-        //.save_to_file(&CONFIG)
-        //.await?
-        //.into_iter()
-        //.map(|(stdout, stderr)| (stdout.unwrap_or_default(), stderr.unwrap_or_default()))
-        //.collect();
         let mut context = tera::Context::new();
         context.insert("repository_name", repository_name);
+        context.insert("repository_description", &description);
         context.insert("status", &status);
         context.insert("logs", &logs);
         let message = tera::Tera::one_off(&TPL, &context, false)?;

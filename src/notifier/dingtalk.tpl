@@ -2,6 +2,10 @@
 
 **repository:** {{repository_name}}
 
+{% if repository_description -%}
+**description:** {{repository_description}}
+{%- endif %}
+
 **status:** {% if status %} success {% else %} failure {% endif %}
 
 **logs:**

@@ -46,7 +46,9 @@ impl Repository {
             status,
             action_result,
         };
-        NOTIFIER.notify(&self.name, result).await?;
+        NOTIFIER
+            .notify(&self.name, self.description.as_deref(), result)
+            .await?;
         Ok(())
     }
 }
