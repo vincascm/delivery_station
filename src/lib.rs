@@ -9,8 +9,9 @@ fn tmp_filename(len: usize) -> String {
     use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
     let mut rng = thread_rng();
-    std::iter::repeat(())
+    let s: Vec<_> = std::iter::repeat(())
         .map(|()| rng.sample(Alphanumeric))
         .take(len)
-        .collect()
+        .collect();
+    String::from_utf8_lossy(&s).to_string()
 }

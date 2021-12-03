@@ -1,6 +1,6 @@
 use std::{future::Future, net::ToSocketAddrs, ops::Deref};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use http::{Request, Response};
 use hyper::{
     client::HttpConnector,
@@ -36,7 +36,7 @@ impl Server {
     pub fn get<P, H, R>(self, path: P, handler: H) -> Self
     where
         P: Into<String>,
-        H: FnMut(Request<Body>) -> R + Send + Sync + 'static,
+        H: Fn(Request<Body>) -> R + Send + Sync + 'static,
         R: Future<Output = Result<Response<Body>, hyper::Error>> + Send + 'static,
     {
         let router = self.router.get(path, handler);
@@ -49,7 +49,7 @@ impl Server {
     pub fn post<P, H, R>(self, path: P, handler: H) -> Self
     where
         P: Into<String>,
-        H: FnMut(Request<Body>) -> R + Send + Sync + 'static,
+        H: Fn(Request<Body>) -> R + Send + Sync + 'static,
         R: Future<Output = Result<Response<Body>, hyper::Error>> + Send + 'static,
     {
         let router = self.router.post(path, handler);
@@ -60,8 +60,14 @@ impl Server {
     }
 
     pub async fn serve(self) -> Result<()> {
-        let router = self.router.build()?;
-        let service = RouterService::new(router)?;
+        let router = match self.router.build() {
+            Ok(r) => r,
+            Err(e) => bail!("{}", e),
+        };
+        let service = match RouterService::new(router) {
+            Ok(s) => s,
+            Err(e) => bail!("{}", e),
+        };
         let server = self.http.serve(service);
         Ok(server.await?)
     }

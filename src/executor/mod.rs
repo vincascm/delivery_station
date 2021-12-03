@@ -3,7 +3,7 @@ use std::{
     process::Output,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Result, Context};
 use blocking::unblock;
 use http::{Request, Response};
 use hyper::{Body, Error};
@@ -161,11 +161,11 @@ impl Step {
                 let host = config
                     .host
                     .get(host)
-                    .ok_or_else(|| anyhow!("invalid host: {}", host))?
+                    .context("invalid host")?
                     .clone();
                 let _self = self.clone();
                 let work_dir = config.work_dir.clone();
-                unblock!(_self.ssh(&host, &work_dir))
+                unblock(move || _self.ssh(&host, &work_dir)).await
             }
             None => {
                 let (mut cmd, args) = match &self.action {
@@ -188,7 +188,7 @@ impl Step {
                     cmd.current_dir(current_dir);
                 }
                 cmd.envs(envs);
-                let output = unblock!(cmd.output())?;
+                let output = unblock(move || cmd.output()).await?;
                 let mut step_result: StepResult = output.into();
                 step_result.description = self.description.clone();
                 Ok(step_result)
