@@ -5,23 +5,41 @@ use hyper::Body;
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use serde::{Deserialize, Serialize};
 
-use crate::http::Client;
+use crate::{constants::CONFIG, executor::StepsResult, http::Client};
 
 const URL: &str = "https://oapi.dingtalk.com/robot/send";
+const TPL: &str = include_str!("dingtalk.tpl");
 
 pub struct DingTalk<'a> {
-    client: &'a Client,
     access_token: &'a str,
     secret: &'a str,
 }
 
 impl<'a> DingTalk<'a> {
-    pub fn new(client: &'a Client, access_token: &'a str, secret: &'a str) -> DingTalk<'a> {
+    pub fn new(access_token: &'a str, secret: &'a str) -> DingTalk<'a> {
         DingTalk {
-            client,
             access_token,
             secret,
         }
+    }
+
+    pub async fn notify(
+        &self,
+        repository_name: &str,
+        description: Option<&str>,
+        result: &StepsResult,
+    ) -> Result<()> {
+        let status = result.success();
+        let logs = result.save_to_file(&CONFIG).await?;
+        let mut context = tera::Context::new();
+        context.insert("repository_name", repository_name);
+        context.insert("repository_description", &description);
+        context.insert("status", &status);
+        context.insert("logs", &logs);
+        let message = tera::Tera::one_off(TPL, &context, false)?;
+        self.markdown(&format!("auto deploy: {}", repository_name), &message, None)
+            .await?;
+        Ok(())
     }
 
     fn sign(&self, timestamp: i64) -> Result<String> {
@@ -50,7 +68,8 @@ impl<'a> DingTalk<'a> {
             .header("Content-Type", "application/json")
             .header("User-Agent", "hyper/0.1")
             .body(Body::from(body))?;
-        let resp = self.client.request(request).await?;
+        let client = Client::default();
+        let resp = client.request(request).await?;
         let body = hyper::body::to_bytes(resp).await?;
         Ok(serde_json::from_slice(&body)?)
     }

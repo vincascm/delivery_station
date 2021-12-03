@@ -4,14 +4,14 @@ use hyper::{header::CONTENT_TYPE, Body, Error, Request, Response};
 use super::TriggeredInfo;
 use crate::constants::CONFIG;
 
-pub async fn manual_trigger(req: Request<Body>) -> Result<Response<Body>, Error> {
-    match manual_trigger_inner(req).await {
+pub async fn trigger(req: Request<Body>) -> Result<Response<Body>, Error> {
+    match inner_trigger(req).await {
         Ok(r) => Ok(r),
         Err(e) => Ok(Response::new(Body::from(e.to_string()))),
     }
 }
 
-async fn manual_trigger_inner(req: Request<Body>) -> Result<Response<Body>> {
+async fn inner_trigger(req: Request<Body>) -> Result<Response<Body>> {
     if let Some(c) = req.headers().get(CONTENT_TYPE) {
         if c != "application/json" {
             bail!("invalid content-type");

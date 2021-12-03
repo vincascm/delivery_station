@@ -12,22 +12,24 @@
 ### 逐行说明
 
 ```yaml
-http_listen_address: 监听地址
-work_dir: 工作目录
-gitea_trigger_secret: gitea secret
-notifier:
-  dingtalk:
-    access_token: 钉钉 access_token
-    secret: 钉钉 secret
-base_url: 访问前缀
+listen_address: 监听地址
 host: 主机
   dev: 主机名
     description: 描述，可选
     hostname: 主机地址
     port: 端口号，可选
     user: 用户名
+notifier:
+  -
+    name: dingtalk
+    access_token: 钉钉 access_token
+    secret: 钉钉 secret
+base_url: 访问前缀
 environment: 环境变量
   TARGET: target
+work_dir: 工作目录
+extra: 额外的配置
+  trigger_secret: gitea secret
 repository: git 仓库
 -
   name: 仓库名
@@ -131,9 +133,4 @@ curl -s -H "Content-Type: application/json" -d '{"repository":"com/abc", "branch
 - *branch* : git分支, 可选
 - *tag* : git tag, 可选
 - *steps_name* : steps name, 可选
-
-## TODO
-
-- [x] branch 匹配
-- [x] tag 匹配
 

@@ -3,7 +3,7 @@ use std::{
     process::Output,
 };
 
-use anyhow::{anyhow, bail, Result, Context};
+use anyhow::{anyhow, bail, Context, Result};
 use blocking::unblock;
 use http::{Request, Response};
 use hyper::{Body, Error};
@@ -16,7 +16,7 @@ use tokio::{
 
 use crate::{
     config::{Action, Config, Repository, Step},
-    constants::{CONFIG, NOTIFIER},
+    constants::CONFIG,
     trigger::TriggeredInfo,
 };
 
@@ -31,7 +31,7 @@ impl Repository {
             .get_steps(steps_name)
             .ok_or_else(|| anyhow!("missing steps or steps name is invalid"))?
         {
-            let result = i.execute(&CONFIG, &self, triggered_info).await?;
+            let result = i.execute(&CONFIG, self, triggered_info).await?;
             let is_success = result.success();
             action_result.push(result);
             if !is_success {
@@ -46,9 +46,12 @@ impl Repository {
             status,
             action_result,
         };
-        NOTIFIER
-            .notify(&self.name, self.description.as_deref(), result)
-            .await?;
+        if let Some(notifier) = &CONFIG.notifier {
+            for i in notifier {
+                i.notify(&self.name, self.description.as_deref(), &result)
+                    .await?;
+            }
+        }
         Ok(())
     }
 }
@@ -63,7 +66,7 @@ impl StepsResult {
         self.status == 0
     }
 
-    pub async fn save_to_file(self, config: &Config) -> Result<Vec<StepLog>> {
+    pub async fn save_to_file(&self, config: &Config) -> Result<Vec<StepLog>> {
         let dir = crate::tmp_filename(16);
         let dir = Path::new(&dir);
         let mut step_log = Vec::new();
@@ -104,18 +107,16 @@ impl StepResult {
     }
 
     async fn save_to_file(&self, config: &Config, parent_dir: &Path) -> Result<StepLog> {
-        let dir = Path::new(&config.work_dir)
-            .join("cache")
-            .join("logs")
-            .join(parent_dir);
+        let dir = config.work_dir.as_deref().unwrap_or("/tmp");
+        let dir = Path::new(&dir).join("cache").join("logs").join(parent_dir);
         if !dir.exists() {
             create_dir_all(&dir).await?;
         }
 
         async fn write_and_get_url(
-            url: &PathBuf,
+            url: &Path,
             parent_dir: &Path,
-            dir: &PathBuf,
+            dir: &Path,
             number: &str,
             out: Option<&Vec<u8>>,
         ) -> Result<Option<String>> {
@@ -132,7 +133,7 @@ impl StepResult {
                 _ => None,
             })
         }
-        let url = Path::new(&config.base_url).join("logs");
+        let url = Path::new(config.base_url.as_deref().unwrap_or("/")).join("logs");
         let stdout_url =
             write_and_get_url(&url, parent_dir, &dir, "1", self.stdout.as_ref()).await?;
         let stderr_url =
@@ -156,22 +157,18 @@ impl Step {
         use std::process::Command;
 
         let envs = self.environment(config, repository, triggered_info);
+        let work_dir = config.work_dir.as_deref().unwrap_or("/tmp");
         match &self.host {
             Some(host) => {
-                let host = config
-                    .host
-                    .get(host)
-                    .context("invalid host")?
-                    .clone();
+                let host = config.host.get(host).context("invalid host")?.clone();
                 let _self = self.clone();
-                let work_dir = config.work_dir.clone();
+                let work_dir = work_dir.to_string();
                 unblock(move || _self.ssh(&host, &work_dir)).await
             }
             None => {
                 let (mut cmd, args) = match &self.action {
                     Action::Script { name } => {
-                        let script_name =
-                            self.get_script_fullname(&config.work_dir, name.get_name())?;
+                        let script_name = self.get_script_fullname(work_dir, name.get_name())?;
                         let mut cmd = Command::new("sh");
                         cmd.arg(script_name);
                         (cmd, name.get_args())
@@ -243,8 +240,9 @@ pub async fn logs_handler(req: Request<Body>) -> Result<Response<Body>, Error> {
             .uri()
             .query()
             .ok_or_else(|| anyhow!("\"id\" is missing."))?;
-        let query: OutputStaticArgs = serde_urlencoded::from_str(&query)?;
-        let f = Path::new(&CONFIG.work_dir)
+        let query: OutputStaticArgs = serde_urlencoded::from_str(query)?;
+        let work_dir = CONFIG.work_dir.as_deref().unwrap_or("/tmp");
+        let f = Path::new(work_dir)
             .join("cache")
             .join("logs")
             .join(&query.id);

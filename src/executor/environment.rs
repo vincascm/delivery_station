@@ -65,10 +65,7 @@ impl<'a> Step {
             ("TRIGGERED_INFO_STEPS_NAME", ti.steps_name.as_deref()),
         ]
         .iter()
-        .filter_map(|(k, v)| match v {
-            Some(v) => Some((*k, *v)),
-            None => None,
-        })
+        .filter_map(|(k, v)| v.as_ref().map(|v| (*k, *v)))
         .collect();
 
         Environment {

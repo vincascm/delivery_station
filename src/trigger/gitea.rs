@@ -7,14 +7,14 @@ use serde::Deserialize;
 use super::TriggeredInfo;
 use crate::constants::CONFIG;
 
-pub async fn gitea_trigger(req: Request<Body>) -> Result<Response<Body>, Error> {
-    match gitea_trigger_inner(req).await {
+pub async fn trigger(req: Request<Body>) -> Result<Response<Body>, Error> {
+    match inner_trigger(req).await {
         Ok(r) => Ok(r),
         Err(e) => Ok(Response::new(Body::from(e.to_string()))),
     }
 }
 
-async fn gitea_trigger_inner(req: Request<Body>) -> Result<Response<Body>> {
+async fn inner_trigger(req: Request<Body>) -> Result<Response<Body>> {
     let (parts, body) = req.into_parts();
     match parts.headers.get(CONTENT_TYPE) {
         Some(c) => {
@@ -29,7 +29,14 @@ async fn gitea_trigger_inner(req: Request<Body>) -> Result<Response<Body>> {
         .get("X-Gitea-Signature")
         .ok_or_else(|| anyhow!("missing signature"))?;
     let body = hyper::body::to_bytes(body).await?;
-    let payload_signature = signature(&CONFIG.gitea_trigger_secret, &body)?;
+    let trigger_secret = match &CONFIG.extra {
+        Some(extra) => {
+            let config: Config = serde_yaml::from_value(extra.clone())?;
+            config.trigger_secret
+        }
+        None => bail!("missing trigger_secret in config"),
+    };
+    let payload_signature = signature(&trigger_secret, &body)?;
     if header_signature != payload_signature.as_bytes() {
         bail!("signature error");
     }
@@ -186,4 +193,9 @@ pub struct InternalTracker {
     enable_time_tracker: bool,
     allow_only_contributors_to_track_time: bool,
     enable_issue_dependencies: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Config {
+    pub trigger_secret: String,
 }

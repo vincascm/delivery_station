@@ -2,28 +2,35 @@ use std::{collections::HashMap, fs::File, slice::from_ref};
 
 use anyhow::Result;
 use serde::Deserialize;
+use serde_yaml::{from_reader, Value};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
-    pub http_listen_address: String,
-    pub gitea_trigger_secret: String,
-    pub base_url: String,
-    pub work_dir: String,
-    pub notifier: Notifier,
-    pub environment: Option<HashMap<String, String>>,
+    /// delivery station http server listen address
+    pub listen_address: String,
+    /// SSH host
     pub host: HashMap<String, Host>,
+    /// git repository list
     pub repository: Vec<Repository>,
+    /// notifier list
+    pub notifier: Option<Vec<Notifier>>,
+    /// SSH environment
+    pub environment: Option<HashMap<String, String>>,
+    /// delivery station work directory, default is `/tmp`
+    pub work_dir: Option<String>,
+    /// delivery station http server url prefix
+    pub base_url: Option<String>,
+    /// extra config
+    pub extra: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Notifier {
-    pub dingtalk: Option<Dingtalk>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Dingtalk {
-    pub access_token: String,
-    pub secret: String,
+#[serde(rename = "snake_case", tag = "type", content = "config")]
+pub enum Notifier {
+    Dingtalk {
+        access_token: String,
+        secret: String,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -73,7 +80,7 @@ enum Steps {
 impl Steps {
     pub fn get(&self) -> Option<&[Step]> {
         Some(match self {
-            Steps::Multiple(m) => &m,
+            Steps::Multiple(m) => m,
             Steps::Single(s) => from_ref(s),
         })
     }
@@ -120,10 +127,15 @@ impl Command {
 }
 
 impl Config {
-    pub fn from_env() -> Result<Config> {
-        let file = std::env::var("CONFIG_FILE")?;
-        let file = File::open(&file)?;
-        let config = serde_yaml::from_reader(file)?;
+    pub fn init() -> Result<Config> {
+        use std::env::{args, var};
+
+        let filename = args()
+            .nth(1)
+            .or_else(|| var("CONFIG_FILE").ok())
+            .unwrap_or_else(|| "config.yaml".to_owned());
+        let file = File::open(&filename)?;
+        let config = from_reader(file)?;
         Ok(config)
     }
 }

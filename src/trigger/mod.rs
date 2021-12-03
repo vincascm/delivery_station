@@ -4,8 +4,13 @@ use serde::Deserialize;
 
 use crate::config::Config;
 
-pub mod gitea;
-pub mod manual;
+mod gitea;
+mod coding;
+mod manual;
+
+pub use gitea::trigger as gitea_trigger;
+pub use coding::trigger as coding_trigger;
+pub use manual::trigger as manual_trigger;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TriggeredInfo {
